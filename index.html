@@ -1,0 +1,935 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>Vidya QR Attendance</title>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+:root{
+  --bg:#eef2f7;
+  --card:#ffffff;
+  --ink:#0f172a;
+  --muted:#64748b;
+  --line:#e2e8f0;
+  --blue:#2563eb;
+  --blue2:#1d4ed8;
+  --green:#16a34a;
+  --green-soft:#dcfce7;
+  --red:#dc2626;
+  --red-soft:#fee2e2;
+  --amber:#d97706;
+  --amber-soft:#fef3c7;
+  --slate:#0f172a;
+  --cyan:#0891b2;
+  --radius:20px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  background:
+    radial-gradient(circle at top right,rgba(37,99,235,.18),transparent 28%),
+    linear-gradient(180deg,#0f172a 0 220px,var(--bg) 220px 100%);
+  color:var(--ink);
+  min-height:100vh
+}
+.app{width:min(100%,720px);margin:auto;padding:14px 12px 90px}
+.hero{
+  color:#fff;padding:8px 4px 18px;
+  display:flex;justify-content:space-between;align-items:flex-start;gap:12px
+}
+.hero h1{font-size:22px;margin:0;font-weight:950;letter-spacing:-.4px}
+.hero p{font-size:11px;color:#cbd5e1;margin:5px 0 0;line-height:1.4}
+.badges{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.badge{
+  padding:7px 10px;border-radius:999px;font-weight:900;font-size:10px;
+  background:rgba(255,255,255,.12);backdrop-filter:blur(8px)
+}
+.badge.online{background:#166534}.badge.offline{background:#991b1b}.badge.syncing{background:#92400e}
+.card{
+  background:rgba(255,255,255,.98);
+  border:1px solid rgba(226,232,240,.95);
+  border-radius:var(--radius);
+  padding:14px;margin-bottom:11px;
+  box-shadow:0 14px 36px rgba(15,23,42,.11)
+}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.stat{
+  border:1px solid var(--line);border-radius:15px;padding:11px 5px;text-align:center;
+  background:linear-gradient(180deg,#fff,#f8fafc)
+}
+.stat b{display:block;font-size:21px;line-height:1.1}
+.stat span{font-size:9px;color:var(--muted);font-weight:900;letter-spacing:.25px}
+.stat.present b{color:var(--green)}.stat.remaining b{color:var(--blue)}.stat.pending b{color:var(--amber)}
+.head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.head h2{margin:0;font-size:14px;font-weight:950}.head small{font-size:10px;color:var(--muted)}
+label{display:block;font-size:10px;color:var(--muted);font-weight:900;margin-bottom:4px}
+input,select{
+  width:100%;height:44px;border:1px solid #cbd5e1;border-radius:12px;
+  padding:0 12px;font-size:14px;background:#fff;color:var(--ink);outline:none
+}
+input:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.10)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+button{
+  border:0;border-radius:12px;height:44px;padding:0 13px;font-weight:900;font-size:13px;cursor:pointer
+}
+.primary{background:var(--blue);color:white}.primary:active{background:var(--blue2)}
+.green{background:var(--green);color:white}.dark{background:var(--slate);color:white}
+.light{background:#e2e8f0;color:#0f172a}.danger{background:#fff1f2;color:#be123c;border:1px solid #fecdd3}
+.cyan{background:var(--cyan);color:white}.full{width:100%}
+.helper{
+  margin-top:8px;padding:10px 11px;border-radius:12px;background:#eff6ff;
+  color:#1e40af;font-size:10px;line-height:1.5
+}
+.secret-note{background:#fff7ed;color:#9a3412}
+#reader{
+  width:100%;min-height:300px;background:#020617;border-radius:17px;overflow:hidden;
+  border:3px solid #111827
+}
+#reader video{border-radius:14px}
+.scan-actions{display:grid;grid-template-columns:1.3fr .7fr;gap:8px;margin-top:9px}
+.status{
+  min-height:112px;border:2px solid var(--line);border-radius:17px;padding:14px;
+  display:flex;gap:13px;align-items:center;background:#f8fafc;transition:.18s ease
+}
+.status .icon{
+  width:58px;height:58px;min-width:58px;border-radius:50%;display:grid;place-items:center;
+  background:#e2e8f0;font-size:30px;font-weight:950
+}
+.status h3{margin:0 0 4px;font-size:18px}.status p{margin:0;color:#475569;font-size:11px;line-height:1.45}
+.status.ok{background:var(--green-soft);border-color:#86efac}
+.status.ok .icon{background:var(--green);color:#fff}.status.ok h3{color:#166534}
+.status.dup{background:var(--red-soft);border-color:#fca5a5}
+.status.dup .icon{background:var(--red);color:#fff}.status.dup h3{color:#991b1b}
+.status.bad{background:var(--amber-soft);border-color:#fcd34d}
+.status.bad .icon{background:var(--amber);color:#fff}.status.bad h3{color:#92400e}
+.manual{display:grid;grid-template-columns:1fr 105px;gap:8px}
+.toolbar{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:9px}
+.toolbar button{height:38px;font-size:11px;flex:1;min-width:105px}
+.tablewrap{border:1px solid var(--line);border-radius:14px;overflow:auto;max-height:350px}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{position:sticky;top:0;background:#f8fafc;z-index:1;color:#475569}
+.tag{display:inline-block;padding:4px 7px;border-radius:999px;font-size:9px;font-weight:950}
+.tag.ok{background:#dcfce7;color:#166534}.tag.queue{background:#fef3c7;color:#92400e}
+.empty{padding:24px;text-align:center;color:var(--muted);font-size:11px}
+.accordion-btn{
+  width:100%;height:auto;background:transparent;padding:0;display:flex;justify-content:space-between;
+  align-items:center;text-align:left;color:var(--ink)
+}
+.config-body{margin-top:12px}
+.conn-line{display:flex;align-items:center;gap:8px;font-size:10px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:#94a3b8}.dot.ok{background:#16a34a}.dot.bad{background:#dc2626}
+.footer{text-align:center;color:#94a3b8;font-size:9px;padding:10px 4px}
+.hidden{display:none!important}
+@media(max-width:460px){
+  .app{padding-left:9px;padding-right:9px}
+  .hero h1{font-size:19px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .grid3{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="hero">
+    <div>
+      <h1>Vidya QR Attendance</h1>
+      <p>Shared • continuous QR scan • multi-mobile sync • duplicate protection</p>
+    </div>
+    <div class="badges">
+      <div id="networkBadge" class="badge">NETWORK</div>
+      <div id="dbBadge" class="badge">DB NOT CONNECTED</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stats">
+      <div class="stat"><b id="totalCount">0</b><span>VALID ROLLS</span></div>
+      <div class="stat present"><b id="presentCount">0</b><span>PRESENT</span></div>
+      <div class="stat remaining"><b id="remainingCount">0</b><span>REMAINING</span></div>
+      <div class="stat pending"><b id="pendingCount">0</b><span>UNSYNCED</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <button class="accordion-btn" onclick="toggleConfig()">
+      <div>
+        <div style="font-size:14px;font-weight:950">Supabase & Exam Settings</div>
+        <div class="conn-line" style="margin-top:4px">
+          <span id="connDot" class="dot"></span>
+          <span id="connText">Not configured</span>
+        </div>
+      </div>
+      <div id="configChevron">▼</div>
+    </button>
+
+    <div id="configBody" class="config-body">
+      <label>SUPABASE PROJECT URL</label>
+      <input id="sbUrl" autocomplete="off" placeholder="https://xxxx.supabase.co">
+
+      <div style="height:8px"></div>
+      <label>SUPABASE ANON / PUBLISHABLE KEY</label>
+      <input id="sbKey" autocomplete="off" placeholder="Paste your anon or publishable key">
+
+      <div style="height:8px"></div>
+      <div class="grid2">
+        <div>
+          <label>EXAM ID</label>
+          <input id="examId" placeholder="SCHOLARSHIP-2026">
+        </div>
+        <div>
+          <label>DEVICE NAME</label>
+          <input id="deviceName" placeholder="Gate-1 / Phone-1">
+        </div>
+      </div>
+
+      <div style="height:8px"></div>
+      <div class="grid2">
+        <div><label>START ROLL</label><input id="startRoll" inputmode="numeric" placeholder="1001"></div>
+        <div><label>END ROLL</label><input id="endRoll" inputmode="numeric" placeholder="4500"></div>
+      </div>
+
+      <div style="height:8px"></div>
+      <label>OPTIONAL QR PREFIX</label>
+      <input id="qrPrefix" placeholder="Example: VIDYA-">
+
+      <div style="height:9px"></div>
+      <div class="grid2">
+        <button class="primary" onclick="saveAndConnect()">Save & Connect</button>
+        <button class="light" onclick="testConnection()">Test Connection</button>
+      </div>
+
+      <div class="helper secret-note">
+        Use only the browser-safe <b>anon</b> or <b>publishable</b> key. Never paste the Supabase <b>service_role</b> secret key here.
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="head">
+      <h2>Continuous QR Scanner</h2>
+      <small id="cameraState">Camera stopped</small>
+    </div>
+
+    <div id="reader"></div>
+
+    <div class="scan-actions">
+      <button class="green" onclick="startScanner()">Start Camera Once</button>
+      <button class="light" onclick="stopScanner()">Stop</button>
+    </div>
+
+    <div class="helper">
+      Keep the camera running. After each student, simply move the next admit card in front of the camera.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="head">
+      <h2>Latest Scan</h2>
+      <small id="lastTime">Waiting</small>
+    </div>
+
+    <div id="statusBox" class="status">
+      <div id="statusIcon" class="icon">⌁</div>
+      <div>
+        <h3 id="statusTitle">Ready</h3>
+        <p id="statusText">Configure Supabase, connect, then start the camera once.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="head"><h2>Manual Attendance</h2><small>Fallback</small></div>
+    <div class="manual">
+      <input id="manualRoll" inputmode="numeric" placeholder="Enter roll number">
+      <button class="dark" onclick="manualMark()">Mark</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="head">
+      <h2>Shared Attendance Records</h2>
+      <small id="recordCount">0 synced</small>
+    </div>
+
+    <div class="toolbar">
+      <button class="primary" onclick="loadRemote()">Refresh</button>
+      <button class="cyan" onclick="syncQueue()">Sync Pending</button>
+      <button class="light" onclick="exportCSV()">Export CSV</button>
+      <button class="light" onclick="copyMissing()">Copy Missing</button>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Roll</th><th>Time</th><th>Device</th><th>Status</th></tr>
+        </thead>
+        <tbody id="attendanceBody"></tbody>
+      </table>
+      <div id="emptyState" class="empty">No attendance recorded yet.</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Shared attendance is synchronized through Supabase. Pending scans remain on this phone until they are synced.
+  </div>
+</div>
+
+<script>
+const CFG_KEY="vidya_attendance_cfg_v3";
+const QUEUE_KEY="vidya_attendance_queue_v3";
+
+let cfg=JSON.parse(localStorage.getItem(CFG_KEY)||"{}");
+let queue=JSON.parse(localStorage.getItem(QUEUE_KEY)||"[]");
+let records=new Map();
+
+let sb=null;
+let realtimeChannel=null;
+let scanner=null;
+let scannerRunning=false;
+let dbConnected=false;
+let lastRaw="";
+let lastRawAt=0;
+let syncing=false;
+
+function el(id){ return document.getElementById(id); }
+
+function boot(){
+  ["sbUrl","sbKey","examId","deviceName","startRoll","endRoll","qrPrefix"].forEach(id=>{
+    el(id).value=cfg[id]||"";
+  });
+
+  if(!cfg.deviceName){
+    el("deviceName").value="Phone-"+Math.random().toString(36).slice(2,6).toUpperCase();
+  }
+
+  updateNetwork();
+  updateStats();
+  renderRecords();
+  updateConnectionUI();
+
+  if(cfg.sbUrl && cfg.sbKey && cfg.examId){
+    connectSupabase(false);
+  }
+}
+
+function toggleConfig(){
+  const body=el("configBody");
+  const hidden=body.classList.toggle("hidden");
+  el("configChevron").textContent=hidden?"▶":"▼";
+}
+
+function readConfigFromForm(){
+  return {
+    sbUrl:el("https://zhiuwrqkjrehdcdbtboh.supabase.co").value.trim(),
+    sbKey:el("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoaXV3cnFranJlaGRjZGJ0Ym9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NTY2OTksImV4cCI6MjA5ODUzMjY5OX0.pElDdJhgzYw5KdU3LaKmQNvYHd-T6G-ThsAbfb6dwIY").value.trim(),
+    examId:el("examId").value.trim(),
+    deviceName:el("deviceName").value.trim() || "Phone",
+    startRoll:el("startRoll").value.trim(),
+    endRoll:el("endRoll").value.trim(),
+    qrPrefix:el("qrPrefix").value.trim()
+  };
+}
+
+function validateConfig(nextCfg){
+  const a=parseInt(nextCfg.startRoll,10);
+  const b=parseInt(nextCfg.endRoll,10);
+
+  if(!nextCfg.sbUrl || !nextCfg.sbKey){
+    return "Supabase URL and anon/publishable key are required.";
+  }
+  if(!nextCfg.examId){
+    return "Exam ID is required.";
+  }
+  if(!Number.isInteger(a) || !Number.isInteger(b) || a>b){
+    return "Enter a valid start and end roll number.";
+  }
+  return "";
+}
+
+async function saveAndConnect(){
+  const nextCfg=readConfigFromForm();
+  const msg=validateConfig(nextCfg);
+  if(msg){
+    setStatus("bad","!","Check Settings",msg);
+    return;
+  }
+
+  cfg=nextCfg;
+  localStorage.setItem(CFG_KEY,JSON.stringify(cfg));
+  records.clear();
+  updateStats();
+  renderRecords();
+  await connectSupabase(true);
+}
+
+async function testConnection(){
+  const temp=readConfigFromForm();
+  const msg=validateConfig(temp);
+  if(msg){
+    setStatus("bad","!","Check Settings",msg);
+    return;
+  }
+
+  try{
+    setDbState("syncing","TESTING...");
+    const client=window.supabase.createClient(temp.sbUrl,temp.sbKey,{auth:{persistSession:false}});
+    const {error}=await client.from("attendance").select("roll_number").limit(1);
+    if(error) throw error;
+    setDbState("online","CONNECTED");
+    setStatus("ok","✓","Supabase Connection OK","The webpage can reach the attendance table successfully.");
+  }catch(e){
+    setDbState("offline","DB ERROR");
+    setStatus("bad","!","Connection Failed",String(e.message||e));
+  }
+}
+
+async function connectSupabase(showSuccess=true){
+  if(!navigator.onLine){
+    setDbState("offline","OFFLINE");
+    dbConnected=false;
+    return;
+  }
+  if(!cfg.sbUrl || !cfg.sbKey || !cfg.examId) return;
+
+  try{
+    setDbState("syncing","CONNECTING");
+    sb=window.supabase.createClient(cfg.sbUrl,cfg.sbKey,{auth:{persistSession:false}});
+
+    const {error}=await sb.from("attendance").select("roll_number").eq("exam_id",cfg.examId).limit(1);
+    if(error) throw error;
+
+    dbConnected=true;
+    setDbState("online","DB CONNECTED");
+    updateConnectionUI();
+
+    await loadRemote();
+    subscribeRealtime();
+    await syncQueue();
+
+    if(showSuccess){
+      setStatus("ok","✓","Connected","Shared attendance synchronization is active.");
+    }
+  }catch(e){
+    console.error(e);
+    dbConnected=false;
+    setDbState("offline","DB ERROR");
+    updateConnectionUI();
+    setStatus("bad","!","Supabase Error",String(e.message||e));
+  }
+}
+
+function subscribeRealtime(){
+  if(!sb || !cfg.examId) return;
+
+  if(realtimeChannel){
+    try{ sb.removeChannel(realtimeChannel); }catch(e){}
+  }
+
+  realtimeChannel=sb.channel("attendance-"+cfg.examId)
+    .on(
+      "postgres_changes",
+      {event:"INSERT",schema:"public",table:"attendance",filter:`exam_id=eq.${cfg.examId}`},
+      payload=>{
+        const r=payload.new;
+        records.set(String(r.roll_number),r);
+        renderRecords();
+        updateStats();
+      }
+    )
+    .subscribe();
+}
+
+async function loadRemote(){
+  if(!sb || !cfg.examId) return;
+
+  try{
+    const {data,error}=await sb
+      .from("attendance")
+      .select("roll_number,scanned_at,device_id")
+      .eq("exam_id",cfg.examId)
+      .order("scanned_at",{ascending:false});
+
+    if(error) throw error;
+
+    records.clear();
+    (data||[]).forEach(r=>records.set(String(r.roll_number),r));
+
+    renderRecords();
+    updateStats();
+  }catch(e){
+    console.error(e);
+  }
+}
+
+function extractRoll(raw){
+  const text=String(raw||"").trim();
+
+  if(cfg.qrPrefix && !text.toUpperCase().includes(cfg.qrPrefix.toUpperCase())){
+    return {ok:false,reason:"This QR does not match the configured exam prefix."};
+  }
+
+  let roll=null;
+
+  if(/^\d+$/.test(text)){
+    roll=parseInt(text,10);
+  }else{
+    const nums=text.match(/\d+/g);
+    if(nums && nums.length){
+      roll=parseInt(nums[nums.length-1],10);
+    }
+  }
+
+  if(!Number.isInteger(roll)){
+    return {ok:false,reason:"No valid roll number was found in this QR."};
+  }
+
+  const start=parseInt(cfg.startRoll,10);
+  const end=parseInt(cfg.endRoll,10);
+
+  if(!Number.isInteger(start) || !Number.isInteger(end)){
+    return {ok:false,reason:"Configure the roll-number range first."};
+  }
+
+  if(roll<start || roll>end){
+    return {ok:false,reason:`Roll ${roll} is outside the valid range ${start}-${end}.`};
+  }
+
+  return {ok:true,roll};
+}
+
+async function handleScan(raw,method="QR"){
+  const now=Date.now();
+
+  // Avoid the same QR firing continuously while still inside the camera frame.
+  if(raw===lastRaw && (now-lastRawAt)<1500) return;
+
+  lastRaw=raw;
+  lastRawAt=now;
+
+  const parsed=extractRoll(raw);
+
+  if(!parsed.ok){
+    feedback("bad");
+    setStatus("bad","!","Invalid / Bogus QR",parsed.reason);
+    return;
+  }
+
+  const roll=parsed.roll;
+  const key=String(roll);
+
+  if(records.has(key) || queue.some(q=>String(q.roll_number)===key)){
+    feedback("dup");
+    setStatus("dup","✕",`Already Scanned: Roll ${roll}`,"Duplicate attendance detected.");
+    return;
+  }
+
+  const row={
+    exam_id:cfg.examId,
+    roll_number:roll,
+    scanned_at:new Date().toISOString(),
+    device_id:cfg.deviceName || "Phone",
+    scan_method:method,
+    qr_raw:String(raw)
+  };
+
+  if(!navigator.onLine || !sb || !dbConnected){
+    queue.push(row);
+    saveQueue();
+    updateStats();
+    renderRecords();
+
+    feedback("ok");
+    setStatus("ok","✓",`Saved Offline: Roll ${roll}`,"Stored safely on this phone and waiting for synchronization.");
+    return;
+  }
+
+  try{
+    const {data,error}=await sb
+      .from("attendance")
+      .insert(row)
+      .select("roll_number,scanned_at,device_id")
+      .single();
+
+    if(error){
+      if(error.code==="23505"){
+        await loadRemote();
+        feedback("dup");
+        setStatus("dup","✕",`Already Scanned: Roll ${roll}`,"This roll was already recorded by another phone.");
+        return;
+      }
+      throw error;
+    }
+
+    records.set(key,data);
+    renderRecords();
+    updateStats();
+
+    feedback("ok");
+    setStatus("ok","✓",`Present: Roll ${roll}`,"Attendance saved and synchronized.");
+  }catch(e){
+    queue.push(row);
+    saveQueue();
+    renderRecords();
+    updateStats();
+
+    feedback("ok");
+    setStatus("ok","✓",`Queued: Roll ${roll}`,"Server/network issue. The attendance was saved locally and will retry automatically.");
+  }
+}
+
+async function syncQueue(){
+  if(syncing || !queue.length || !navigator.onLine || !sb || !dbConnected) return;
+
+  syncing=true;
+  setDbState("syncing","SYNCING");
+
+  const left=[];
+
+  for(const row of queue){
+    try{
+      const {data,error}=await sb
+        .from("attendance")
+        .insert(row)
+        .select("roll_number,scanned_at,device_id")
+        .single();
+
+      if(error){
+        if(error.code==="23505"){
+          continue;
+        }
+        throw error;
+      }
+
+      if(data){
+        records.set(String(data.roll_number),data);
+      }
+    }catch(e){
+      left.push(row);
+    }
+  }
+
+  queue=left;
+  saveQueue();
+  syncing=false;
+
+  setDbState("online","DB CONNECTED");
+  await loadRemote();
+}
+
+function saveQueue(){
+  localStorage.setItem(QUEUE_KEY,JSON.stringify(queue));
+}
+
+async function startScanner(){
+  if(scannerRunning) return;
+
+  const current=readConfigFromForm();
+  const msg=validateConfig(current);
+
+  if(msg){
+    setStatus("bad","!","Setup Required",msg);
+    return;
+  }
+
+  if(JSON.stringify(current)!==JSON.stringify(cfg)){
+    cfg=current;
+    localStorage.setItem(CFG_KEY,JSON.stringify(cfg));
+  }
+
+  try{
+    scanner=scanner || new Html5Qrcode("reader");
+
+    await scanner.start(
+      {facingMode:"environment"},
+      {
+        fps:20,
+        qrbox:(w,h)=>{
+          const size=Math.floor(Math.min(w,h)*0.76);
+          return {width:size,height:size};
+        },
+        aspectRatio:1,
+        disableFlip:false
+      },
+      decodedText=>handleScan(decodedText,"QR"),
+      ()=>{}
+    );
+
+    scannerRunning=true;
+    el("cameraState").textContent="Continuous scanning active";
+    setStatus("ok","✓","Scanner Active","Camera will remain on. Show the next admit card after each scan.");
+  }catch(e){
+    console.error(e);
+    setStatus("bad","!","Camera Error","Allow camera permission and open this webpage through HTTPS.");
+  }
+}
+
+async function stopScanner(){
+  if(scanner && scannerRunning){
+    try{
+      await scanner.stop();
+      scannerRunning=false;
+      el("cameraState").textContent="Camera stopped";
+    }catch(e){}
+  }
+}
+
+function manualMark(){
+  const input=el("manualRoll");
+  const value=input.value.trim();
+  if(!value) return;
+
+  handleScan(value,"Manual");
+  input.value="";
+  input.focus();
+}
+
+el("manualRoll").addEventListener("keydown",e=>{
+  if(e.key==="Enter") manualMark();
+});
+
+function updateStats(){
+  const start=parseInt(cfg.startRoll,10);
+  const end=parseInt(cfg.endRoll,10);
+
+  const total=(Number.isInteger(start)&&Number.isInteger(end)&&end>=start)
+    ? end-start+1
+    : 0;
+
+  const queuedUnique=[...new Set(queue.map(q=>String(q.roll_number)))].filter(k=>!records.has(k)).length;
+  const present=records.size;
+  const remaining=Math.max(0,total-present-queuedUnique);
+
+  el("totalCount").textContent=total.toLocaleString();
+  el("presentCount").textContent=present.toLocaleString();
+  el("remainingCount").textContent=remaining.toLocaleString();
+  el("pendingCount").textContent=queuedUnique.toLocaleString();
+  el("recordCount").textContent=`${present.toLocaleString()} synced`;
+}
+
+function renderRecords(){
+  const body=el("attendanceBody");
+  const empty=el("emptyState");
+
+  body.innerHTML="";
+
+  const synced=[...records.values()]
+    .sort((a,b)=>new Date(b.scanned_at)-new Date(a.scanned_at));
+
+  if(!synced.length && !queue.length){
+    empty.classList.remove("hidden");
+    return;
+  }
+
+  empty.classList.add("hidden");
+
+  synced.slice(0,600).forEach((r,i)=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`
+      <td>${i+1}</td>
+      <td><b>${escapeHtml(r.roll_number)}</b></td>
+      <td>${escapeHtml(new Date(r.scanned_at).toLocaleString())}</td>
+      <td>${escapeHtml(r.device_id||"")}</td>
+      <td><span class="tag ok">SYNCED</span></td>
+    `;
+    body.appendChild(tr);
+  });
+
+  queue.forEach((r,i)=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`
+      <td>Q${i+1}</td>
+      <td><b>${escapeHtml(r.roll_number)}</b></td>
+      <td>${escapeHtml(new Date(r.scanned_at).toLocaleString())}</td>
+      <td>${escapeHtml(r.device_id||"")}</td>
+      <td><span class="tag queue">PENDING</span></td>
+    `;
+    body.appendChild(tr);
+  });
+}
+
+function setStatus(type,icon,title,text){
+  el("statusBox").className="status "+type;
+  el("statusIcon").textContent=icon;
+  el("statusTitle").textContent=title;
+  el("statusText").textContent=text;
+  el("lastTime").textContent=new Date().toLocaleTimeString();
+}
+
+function feedback(type){
+  try{
+    const C=window.AudioContext||window.webkitAudioContext;
+    const ctx=new C();
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.frequency.value=type==="ok"?1000:type==="dup"?220:430;
+    gain.gain.setValueAtTime(.13,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.13);
+
+    osc.start();
+    osc.stop(ctx.currentTime+.13);
+  }catch(e){}
+
+  if(navigator.vibrate){
+    navigator.vibrate(type==="ok"?55:[100,50,100]);
+  }
+}
+
+function updateNetwork(){
+  const badge=el("networkBadge");
+
+  if(navigator.onLine){
+    badge.textContent="ONLINE";
+    badge.className="badge online";
+  }else{
+    badge.textContent="OFFLINE";
+    badge.className="badge offline";
+  }
+}
+
+function setDbState(state,text){
+  const badge=el("dbBadge");
+  badge.textContent=text;
+
+  if(state==="online") badge.className="badge online";
+  else if(state==="syncing") badge.className="badge syncing";
+  else badge.className="badge offline";
+}
+
+function updateConnectionUI(){
+  const dot=el("connDot");
+  const text=el("connText");
+
+  if(dbConnected){
+    dot.className="dot ok";
+    text.textContent=`Connected • ${cfg.examId || ""}`;
+  }else if(cfg.sbUrl && cfg.sbKey){
+    dot.className="dot bad";
+    text.textContent="Configured but not connected";
+  }else{
+    dot.className="dot";
+    text.textContent="Not configured";
+  }
+}
+
+function exportCSV(){
+  const rows=[["Exam ID","Roll Number","Status","Scanned At","Device"]];
+
+  [...records.values()]
+    .sort((a,b)=>Number(a.roll_number)-Number(b.roll_number))
+    .forEach(r=>{
+      rows.push([
+        cfg.examId,
+        r.roll_number,
+        "Present",
+        new Date(r.scanned_at).toLocaleString(),
+        r.device_id||""
+      ]);
+    });
+
+  queue.forEach(r=>{
+    rows.push([
+      cfg.examId,
+      r.roll_number,
+      "Pending Sync",
+      new Date(r.scanned_at).toLocaleString(),
+      r.device_id||""
+    ]);
+  });
+
+  const csv=rows.map(row=>row.map(csvCell).join(",")).join("\n");
+  const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+
+  a.href=url;
+  a.download=`attendance_${cfg.examId||"exam"}_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function copyMissing(){
+  const start=parseInt(cfg.startRoll,10);
+  const end=parseInt(cfg.endRoll,10);
+
+  if(!Number.isInteger(start)||!Number.isInteger(end)){
+    setStatus("bad","!","Roll Range Missing","Set the start and end roll numbers first.");
+    return;
+  }
+
+  const queuedSet=new Set(queue.map(q=>String(q.roll_number)));
+  const missing=[];
+
+  for(let r=start;r<=end;r++){
+    const k=String(r);
+    if(!records.has(k) && !queuedSet.has(k)){
+      missing.push(r);
+    }
+  }
+
+  navigator.clipboard.writeText(missing.join(", "))
+    .then(()=>{
+      setStatus("ok","✓","Missing Rolls Copied",`${missing.length} missing roll numbers copied.`);
+    })
+    .catch(()=>{
+      setStatus("bad","!","Copy Failed","Clipboard permission was blocked by the browser.");
+    });
+}
+
+function csvCell(v){
+  return `"${String(v??"").replace(/"/g,'""')}"`;
+}
+
+function escapeHtml(v){
+  return String(v??"")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+window.addEventListener("online",async()=>{
+  updateNetwork();
+  await connectSupabase(false);
+  await syncQueue();
+});
+
+window.addEventListener("offline",()=>{
+  updateNetwork();
+  dbConnected=false;
+  setDbState("offline","OFFLINE");
+  updateConnectionUI();
+});
+
+document.addEventListener("visibilitychange",()=>{
+  if(!document.hidden && navigator.onLine){
+    syncQueue();
+    loadRemote();
+  }
+});
+
+setInterval(()=>{
+  if(navigator.onLine && queue.length){
+    syncQueue();
+  }
+},4000);
+
+boot();
+</script>
+</body>
+</html>
