@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
-<title>Vidya QR Attendance</title>
+<title>Vidya Attendance • Exam 261</title>
 
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -141,7 +141,7 @@ th{position:sticky;top:0;background:#f8fafc;z-index:1;color:#475569}
 
   <div class="hero">
     <div>
-      <h1>Vidya QR Attendance</h1>
+      <h1>Vidya QR Attendance • Exam 261</h1>
       <p>Shared • continuous QR scan • multi-mobile sync • duplicate protection</p>
     </div>
     <div class="badges">
@@ -173,17 +173,17 @@ th{position:sticky;top:0;background:#f8fafc;z-index:1;color:#475569}
 
     <div id="configBody" class="config-body">
       <label>SUPABASE PROJECT URL</label>
-      <input id="sbUrl" autocomplete="off" placeholder="https://xxxx.supabase.co">
+      <input id="sbUrl" autocomplete="off" value="https://zhiuwrqkjrehdcdbtboh.supabase.co" readonly>
 
       <div style="height:8px"></div>
       <label>SUPABASE ANON / PUBLISHABLE KEY</label>
-      <input id="sbKey" autocomplete="off" placeholder="Paste your anon or publishable key">
+      <input id="sbKey" autocomplete="off" value="Configured securely in this page" readonly data-configured="true">
 
       <div style="height:8px"></div>
       <div class="grid2">
         <div>
           <label>EXAM ID</label>
-          <input id="examId" placeholder="SCHOLARSHIP-2026">
+          <input id="examId" value="261" readonly>
         </div>
         <div>
           <label>DEVICE NAME</label>
@@ -193,8 +193,8 @@ th{position:sticky;top:0;background:#f8fafc;z-index:1;color:#475569}
 
       <div style="height:8px"></div>
       <div class="grid2">
-        <div><label>START ROLL</label><input id="startRoll" inputmode="numeric" placeholder="1001"></div>
-        <div><label>END ROLL</label><input id="endRoll" inputmode="numeric" placeholder="4500"></div>
+        <div><label>START ROLL</label><input id="startRoll" inputmode="numeric" value="2600010000" readonly></div>
+        <div><label>END ROLL (EDIT DAILY)</label><input id="endRoll" inputmode="numeric" value="2600013200" placeholder="Enter latest issued roll"></div>
       </div>
 
       <div style="height:8px"></div>
@@ -207,6 +207,9 @@ th{position:sticky;top:0;background:#f8fafc;z-index:1;color:#475569}
         <button class="light" onclick="testConnection()">Test Connection</button>
       </div>
 
+      <div class="helper" style="background:#ecfdf5;color:#166534">
+        <b>Daily use:</b> only update the <b>END ROLL</b> when new admit cards are issued. The new value is saved on that phone after you tap <b>Save & Connect</b>.
+      </div>
       <div class="helper secret-note">
         Use only the browser-safe <b>anon</b> or <b>publishable</b> key. Never paste the Supabase <b>service_role</b> secret key here.
       </div>
@@ -288,6 +291,13 @@ const CFG_KEY="vidya_attendance_cfg_v3";
 const QUEUE_KEY="vidya_attendance_queue_v3";
 
 let cfg=JSON.parse(localStorage.getItem(CFG_KEY)||"{}");
+if(!cfg.sbUrl) cfg.sbUrl="https://zhiuwrqkjrehdcdbtboh.supabase.co";
+if(!cfg.sbKey) cfg.sbKey="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoaXV3cnFranJlaGRjZGJ0Ym9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NTY2OTksImV4cCI6MjA5ODUzMjY5OX0.pElDdJhgzYw5KdU3LaKmQNvYHd-T6G-ThsAbfb6dwIY";
+if(!cfg.examId) cfg.examId="261";
+if(!cfg.startRoll) cfg.startRoll="2600010000";
+if(!cfg.endRoll) cfg.endRoll="2600013200";
+if(!cfg.qrPrefix) cfg.qrPrefix="";
+
 let queue=JSON.parse(localStorage.getItem(QUEUE_KEY)||"[]");
 let records=new Map();
 
@@ -329,11 +339,11 @@ function toggleConfig(){
 
 function readConfigFromForm(){
   return {
-    sbUrl:el("https://zhiuwrqkjrehdcdbtboh.supabase.co").value.trim(),
-    sbKey:el("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoaXV3cnFranJlaGRjZGJ0Ym9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NTY2OTksImV4cCI6MjA5ODUzMjY5OX0.pElDdJhgzYw5KdU3LaKmQNvYHd-T6G-ThsAbfb6dwIY").value.trim(),
-    examId:el("examId").value.trim(),
+    sbUrl:"https://zhiuwrqkjrehdcdbtboh.supabase.co",
+    sbKey:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoaXV3cnFranJlaGRjZGJ0Ym9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NTY2OTksImV4cCI6MjA5ODUzMjY5OX0.pElDdJhgzYw5KdU3LaKmQNvYHd-T6G-ThsAbfb6dwIY",
+    examId:"261",
     deviceName:el("deviceName").value.trim() || "Phone",
-    startRoll:el("startRoll").value.trim(),
+    startRoll:"2600010000",
     endRoll:el("endRoll").value.trim(),
     qrPrefix:el("qrPrefix").value.trim()
   };
